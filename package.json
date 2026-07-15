@@ -9,10 +9,7 @@
     "dev": "nodemon src/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node drizzle/migrate.js",
-    "db:studio": "drizzle-kit studio",
-    "check-schema": "node scratch/checkSchema.js",
-    "drop-table": "node scratch/dropTable.js",
-    "test-api": "node scratch/testApi.js"
+    "db:studio": "drizzle-kit studio"
   },
   "keywords": [
     "express",
