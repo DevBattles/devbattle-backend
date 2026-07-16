@@ -25,3 +25,47 @@ export const authenticateUser = (req, res, next) => {
   req.user = decoded;
   next();
 };
+
+/**
+ * Middleware to authorize users based on their role
+ * @param {string[]} allowedRoles - Array of roles that are allowed to access the route
+ */
+export const authorizeRoles = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      logger.warn('Authorization failed: User not authenticated');
+      return next(new AppError('Unauthorized: User not authenticated', 401));
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      logger.warn('Authorization failed: User does not have required role', {
+        userId: req.user.id,
+        userRole: req.user.role,
+        requiredRoles: allowedRoles
+      });
+      return next(new AppError('Forbidden: You do not have permission to access this resource', 403));
+    }
+
+    next();
+  };
+};
+
+/**
+ * Middleware to check if user is a student
+ */
+export const requireStudent = authorizeRoles('student');
+
+/**
+ * Middleware to check if user is a teacher
+ */
+export const requireTeacher = authorizeRoles('teacher');
+
+/**
+ * Middleware to check if user is an admin
+ */
+export const requireAdmin = authorizeRoles('admin');
+
+/**
+ * Middleware to check if user is a teacher or admin
+ */
+export const requireTeacherOrAdmin = authorizeRoles('teacher', 'admin');
