@@ -54,6 +54,7 @@ export const questionVersions = pgTable('question_versions', {
   techStack: jsonb('tech_stack').notNull(),
   starterFiles: jsonb('starter_files'),
   expectedOutput: text('expected_output'),
+  rubric: jsonb('rubric'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

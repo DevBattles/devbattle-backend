@@ -15,6 +15,13 @@
       "when": 1784176567282,
       "tag": "0001_daily_gladiator",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784194500636,
+      "tag": "0002_wooden_ulik",
+      "breakpoints": true
     }
   ]
 }

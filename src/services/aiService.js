@@ -8,7 +8,7 @@ const AI_BACKEND_URL = process.env.AI_BACKEND_URL || "http://127.0.0.1:8000";
 async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 1000) {
   for (let i = 0; i < retries; i++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout per call
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout per call
 
     try {
       const response = await fetch(url, {
