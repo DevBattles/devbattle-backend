@@ -10,6 +10,7 @@ import certificateRoutes from './certificates.js';
 import notificationRoutes from './notifications.js';
 import dashboardRoutes from './dashboard.js';
 import adminRoutes from './admin.js';
+import aiRoutes from './ai.js';
 
 const router = Router();
 
@@ -47,5 +48,8 @@ router.use('/api/dashboard', dashboardRoutes);
 
 // Admin routes
 router.use('/api/admin', adminRoutes);
+
+// AI features routes
+router.use('/api/ai', aiRoutes);
 
 export default router;

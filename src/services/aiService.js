@@ -1,6 +1,43 @@
 import logger from "../logger/logger.js";
 
-const AI_BACKEND_URL = process.env.AI_BACKEND_URL;
+const AI_BACKEND_URL = process.env.AI_BACKEND_URL || "http://127.0.0.1:8000";
+
+/**
+ * Robust fetch utility supporting timeouts and exponential backoff retries.
+ */
+async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout per call
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        return response;
+      }
+
+      const errMsg = await response.text().catch(() => "");
+      throw new Error(`AI Backend returned ${response.status}: ${errMsg || response.statusText}`);
+    } catch (err) {
+      clearTimeout(timeoutId);
+      logger.warn(`AI backend request failed (attempt ${i + 1}/${retries}): ${err.message}`);
+
+      if (i === retries - 1) {
+        throw err;
+      }
+
+      // Exponential backoff delay
+      const delay = baseDelay * Math.pow(2, i);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
 
 export const aiService = {
   /**
@@ -12,33 +49,46 @@ export const aiService = {
     });
 
     if (!AI_BACKEND_URL) {
-      logger.warn(
-        "AI_BACKEND_URL not defined. Falling back to mock solutions."
-      );
+      logger.warn("AI_BACKEND_URL not defined. Falling back to mock solutions.");
       return this._generateMockSolutions(question);
     }
 
+    // Align exactly with GenerateQuestionRequest schema
+    const payload = {
+      questionId: question.id,
+      version: question.version || 1,
+      title: question.title,
+      description: question.description,
+      requirements: question.requirements || [],
+      starterFiles: question.starterFiles || {},
+      expectedOutput: question.expectedOutput || "",
+    };
+
     try {
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `${AI_BACKEND_URL}/internal/questions/generate`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ question }),
+          body: JSON.stringify(payload),
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`AI backend error: ${response.status}`);
-      }
-
       const result = await response.json();
-      return result.data || result;
+      const rawData = result.data || result;
+
+      // Normalize output format to match database expectedOutput JSON schema
+      return {
+        referenceId: rawData.questionId || question.id,
+        solutions_count: rawData.solutions_count || 0,
+        rubric: rawData.rubric || {},
+        solutions: [], // solutions are embedded and index stored in pgvector
+      };
     } catch (error) {
       logger.error(
-        "Failed to communicate with AI backend for solution generation.",
+        "Failed to generate solutions via AI backend. Falling back to mock.",
         {
           error: error.message,
           questionId: question.id,
@@ -59,36 +109,52 @@ export const aiService = {
     });
 
     if (!AI_BACKEND_URL) {
-      logger.warn(
-        "AI_BACKEND_URL not defined. Falling back to mock evaluation."
-      );
+      logger.warn("AI_BACKEND_URL not defined. Falling back to mock evaluation.");
       return this._generateMockEvaluation(submission, question);
     }
 
+    // Align exactly with EvaluateSubmissionRequest schema
+    const payload = {
+      questionId: question.id || submission.questionId,
+      version: submission.questionVersion || question.version || 1,
+      studentFiles: submission.files || {},
+      githubUrl: submission.githubRepo || null,
+    };
+
     try {
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `${AI_BACKEND_URL}/internal/submissions/evaluate`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            submission,
-            question,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`AI backend error: ${response.status}`);
+      const result = await response.json();
+      const rawData = result.data || result;
+
+      // Extract generalFeedback as a plain string text for the db column type match
+      let feedbackText = "";
+      if (typeof rawData.feedback === "string") {
+        feedbackText = rawData.feedback;
+      } else if (rawData.feedback && typeof rawData.feedback.generalFeedback === "string") {
+        feedbackText = rawData.feedback.generalFeedback;
+      } else {
+        feedbackText = "AI Evaluation completed successfully.";
       }
 
-      const result = await response.json();
-      return result.data || result;
+      return {
+        score: typeof rawData.score === "number" ? rawData.score : 0,
+        grade: rawData.grade || "F",
+        feedback: feedbackText,
+        report: rawData.feedback || rawData.report || rawData,
+      };
     } catch (error) {
       logger.error(
-        "Failed to communicate with AI backend for evaluation.",
+        "Failed to evaluate submission via AI backend. Falling back to mock.",
         {
           error: error.message,
           submissionId: submission.id,
@@ -109,22 +175,28 @@ export const aiService = {
       throw new Error("AI_BACKEND_URL is not configured.");
     }
 
-    const response = await fetch(
+    // Align exactly with MentorChatRequest schema
+    const formattedPayload = {
+      currentRole: payload.currentRole || "student",
+      currentQuestion: payload.currentQuestion || {},
+      currentContext: payload.currentContext || {},
+      chatHistory: payload.chatHistory || [],
+      message: payload.message || "",
+    };
+
+    const response = await fetchWithRetry(
       `${AI_BACKEND_URL}/internal/mentor/chat`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formattedPayload),
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Mentor API failed: ${response.status}`);
-    }
-
-    return await response.json();
+    const result = await response.json();
+    return result.data || result;
   },
 
   /**
@@ -178,18 +250,15 @@ export const aiService = {
       score,
       grade,
       feedback: `AI reviewed your submission containing ${fileCount} file(s). Good code structure. Suggested improvement: add unit tests and improve edge case handling.`,
-
       report: {
         timestamp: new Date().toISOString(),
         score,
         grade,
-
         metrics: {
           codeQuality: Math.min(score + 2, 100),
           performance: Math.max(score - 3, 0),
           readability: Math.min(score + 5, 100),
         },
-
         suggestions: [
           "Handle edge cases.",
           "Improve naming conventions.",
