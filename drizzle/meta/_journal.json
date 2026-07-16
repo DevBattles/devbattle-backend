@@ -8,6 +8,13 @@
       "when": 1784024419251,
       "tag": "0000_premium_nicolaos",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784176567282,
+      "tag": "0001_daily_gladiator",
+      "breakpoints": true
     }
   ]
 }

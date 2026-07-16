@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { env } from '../config/env.js';
-import * as schema from '../schema/users.js';
+import * as schema from '../schema/index.js';
 import logger from '../logger/logger.js';
 
 // For long-running server, we can specify connection options if needed.
