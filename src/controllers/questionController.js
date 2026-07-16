@@ -124,6 +124,16 @@ export const questionController = {
     }
   },
 
+  async submitPracticeQuestion(req, res, next) {
+    try {
+      const { questionId } = req.params;
+      const result = await questionService.submitPracticeQuestion(req.user.id, questionId, req.body);
+      return sendSuccess(res, 200, 'Practice question evaluated successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   /**
    * Get questions created by the teacher
    */

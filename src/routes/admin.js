@@ -36,6 +36,13 @@ router.post('/departments', adminController.createDepartment);
 router.get('/colleges-departments', adminController.getCollegesAndDepartments);
 
 /**
+ * @route   GET /api/admin/pending-teachers
+ * @desc    List pending teacher approvals
+ * @access  Admin
+ */
+router.get('/pending-teachers', adminController.getPendingTeachers);
+
+/**
  * @route   GET /api/admin/teachers
  * @desc    List all teachers
  * @access  Admin

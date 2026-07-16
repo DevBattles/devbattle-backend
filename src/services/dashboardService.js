@@ -7,8 +7,8 @@ import { notificationRepository } from '../repositories/notificationRepository.j
 import { userRepository } from '../repositories/userRepository.js';
 import { analyticsRepository } from '../repositories/analyticsRepository.js';
 import { db } from '../db/index.js';
-import { users, homeworkSubmissions, contestSubmissions, questionBank } from '../schema/index.js';
-import { eq, and, sql } from 'drizzle-orm';
+import { users, homeworkSubmissions, contestSubmissions, questionBank, questionProgress } from '../schema/index.js';
+import { eq, and, sql, desc } from 'drizzle-orm';
 import logger from '../logger/logger.js';
 
 export const dashboardService = {
@@ -24,14 +24,14 @@ export const dashboardService = {
       const upcomingContests = contestsResult.data.filter(c => new Date(c.startTime) > new Date());
 
       const [{ totalQuestions }] = await db.select({ totalQuestions: sql`count(*)` }).from(questionBank);
-      const completedProgress = await db.select({ completed: sql`count(*)` }).from(sql`question_progress`).where(
-        and(eq(sql`user_id`, studentId), eq(sql`status`, 'completed'))
+      const completedProgress = await db.select({ completed: sql`count(*)` }).from(questionProgress).where(
+        and(eq(questionProgress.userId, studentId), eq(questionProgress.status, 'completed'))
       );
       const solvedCount = completedProgress[0] ? parseInt(completedProgress[0].completed) : 0;
 
       const recentHomeworkSubmission = await db.select().from(homeworkSubmissions)
         .where(eq(homeworkSubmissions.studentId, studentId))
-        .orderBy(sql`submitted_at desc`)
+        .orderBy(desc(homeworkSubmissions.submittedAt))
         .limit(1);
 
       const studentCertificates = await certificateRepository.getUserCertificates(studentId);

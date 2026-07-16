@@ -13,7 +13,7 @@ const startServer = async () => {
     await checkDbConnection();
 
     // Start listening
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server startup: DevBattle Auth Service running on port ${PORT} [Mode: ${env.NODE_ENV}]`);
     });
 

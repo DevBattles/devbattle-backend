@@ -186,6 +186,18 @@ export const userRepository = {
   },
 
   /**
+   * Get pending teacher approvals
+   */
+  async getPendingTeachers() {
+    const list = await db.select()
+      .from(users)
+      .leftJoin(teacherProfiles, eq(users.id, teacherProfiles.userId))
+      .where(and(eq(users.role, 'teacher'), eq(users.isApproved, false)))
+      .orderBy(desc(users.createdAt));
+    return list.map(item => ({ ...item.users, profile: item.teacher_profiles }));
+  },
+
+  /**
    * Admin lists all students
    */
   async getAllStudents(skip = 0, take = 10) {

@@ -3,6 +3,7 @@ import { questionRepository } from '../repositories/questionRepository.js';
 import { aiService } from './aiService.js';
 import { notificationService } from './notificationService.js';
 import { leaderboardService } from './leaderboardService.js';
+import { analyticsService } from './analyticsService.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../logger/logger.js';
 import { ContestDTO, SubmissionDTO } from '../dto/index.js';
@@ -16,6 +17,12 @@ export const contestService = {
       contestData.createdBy = userId;
       const questionsList = contestData.questions || [];
       const contest = await contestRepository.createContest(contestData, questionsList);
+
+      await analyticsService.logEvent(userId, 'contest_created', {
+        contestId: contest.id,
+        title: contest.title,
+        questionCount: questionsList.length
+      });
 
       if (contest.published || contest.status === 'published') {
         await notificationService.notifyAllStudents({
@@ -144,6 +151,12 @@ export const contestService = {
         status: 'pending'
       });
 
+      await analyticsService.logEvent(studentId, 'contest_submission', {
+        contestId,
+        questionId,
+        submissionId: submission.id
+      });
+
       let aiReport;
       try {
         aiReport = await aiService.evaluateSubmission(submission, question);
@@ -167,6 +180,14 @@ export const contestService = {
 
       await leaderboardService.awardPoints(studentId, 'contest', contestId, aiReport.score || 0);
       await leaderboardService.awardPoints(studentId, 'global', null, aiReport.score || 0);
+
+      await analyticsService.logEvent(studentId, 'contest_graded', {
+        contestId,
+        questionId,
+        submissionId: submission.id,
+        score: aiReport.score,
+        grade: aiReport.grade
+      });
 
       await notificationService.createNotification({
         userId: studentId,

@@ -9,7 +9,8 @@
     "dev": "nodemon src/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node drizzle/migrate.js",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "node scripts/seed.js"
   },
   "keywords": [
     "express",

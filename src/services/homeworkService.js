@@ -3,6 +3,7 @@ import { questionRepository } from '../repositories/questionRepository.js';
 import { aiService } from './aiService.js';
 import { notificationService } from './notificationService.js';
 import { leaderboardService } from './leaderboardService.js';
+import { analyticsService } from './analyticsService.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../logger/logger.js';
 import { HomeworkDTO, SubmissionDTO } from '../dto/index.js';
@@ -16,6 +17,13 @@ export const homeworkService = {
       homeworkData.createdBy = userId;
       const questionIds = homeworkData.questions || [];
       const homework = await homeworkRepository.createHomework(homeworkData, questionIds);
+
+      await analyticsService.logEvent(userId, 'homework_created', {
+        homeworkId: homework.id,
+        title: homework.title,
+        questionCount: questionIds.length
+      });
+
       return HomeworkDTO.toResponse(homework);
     } catch (error) {
       logger.error('Error in homeworkService.createHomework', { error: error.message });
@@ -133,6 +141,12 @@ export const homeworkService = {
         status: 'pending'
       });
 
+      await analyticsService.logEvent(studentId, 'homework_submitted', {
+        homeworkId,
+        questionId,
+        submissionId: submission.id
+      });
+
       let aiReport;
       try {
         aiReport = await aiService.evaluateSubmission(submission, question);
@@ -155,6 +169,14 @@ export const homeworkService = {
       });
 
       await leaderboardService.awardPoints(studentId, 'homework', homeworkId, aiReport.score || 0);
+
+      await analyticsService.logEvent(studentId, 'homework_graded', {
+        homeworkId,
+        questionId,
+        submissionId: submission.id,
+        score: aiReport.score,
+        grade: aiReport.grade
+      });
 
       await notificationService.createNotification({
         userId: studentId,

@@ -50,7 +50,7 @@ export const aiService = {
 
     if (!AI_BACKEND_URL) {
       logger.warn("AI_BACKEND_URL not defined. Falling back to mock solutions.");
-      return this._generateMockSolutions(question);
+      return this._generateMockSolutions(question, "AI_BACKEND_URL not configured");
     }
 
     // Align exactly with GenerateQuestionRequest schema
@@ -85,6 +85,7 @@ export const aiService = {
         solutions_count: rawData.solutions_count || 0,
         rubric: rawData.rubric || {},
         solutions: [], // solutions are embedded and index stored in pgvector
+        aiBackendAvailable: true,
       };
     } catch (error) {
       logger.error(
@@ -92,10 +93,11 @@ export const aiService = {
         {
           error: error.message,
           questionId: question.id,
+          errorType: error.name,
         }
       );
 
-      return this._generateMockSolutions(question);
+      return this._generateMockSolutions(question, `AI backend unavailable: ${error.message}`);
     }
   },
 
@@ -110,7 +112,7 @@ export const aiService = {
 
     if (!AI_BACKEND_URL) {
       logger.warn("AI_BACKEND_URL not defined. Falling back to mock evaluation.");
-      return this._generateMockEvaluation(submission, question);
+      return this._generateMockEvaluation(submission, question, "AI_BACKEND_URL not configured");
     }
 
     // Align exactly with EvaluateSubmissionRequest schema
@@ -151,6 +153,7 @@ export const aiService = {
         grade: rawData.grade || "F",
         feedback: feedbackText,
         report: rawData.feedback || rawData.report || rawData,
+        aiBackendAvailable: true,
       };
     } catch (error) {
       logger.error(
@@ -158,10 +161,11 @@ export const aiService = {
         {
           error: error.message,
           submissionId: submission.id,
+          errorType: error.name,
         }
       );
 
-      return this._generateMockEvaluation(submission, question);
+      return this._generateMockEvaluation(submission, question, `AI backend unavailable: ${error.message}`);
     }
   },
 
@@ -202,7 +206,7 @@ export const aiService = {
   /**
    * Mock solution generator
    */
-  _generateMockSolutions(question) {
+  _generateMockSolutions(question, errorMessage = "") {
     const tech =
       question.techStack && question.techStack.length
         ? question.techStack[0]
@@ -211,6 +215,8 @@ export const aiService = {
     return {
       referenceId: `ai-ref-${Math.random().toString(36).slice(2, 10)}`,
       generatedAt: new Date().toISOString(),
+      aiBackendAvailable: false,
+      fallbackReason: errorMessage,
       solutions: [
         {
           title: "Optimal Solution",
@@ -229,7 +235,7 @@ export const aiService = {
   /**
    * Mock submission evaluation
    */
-  _generateMockEvaluation(submission, question) {
+  _generateMockEvaluation(submission, question, errorMessage = "") {
     const fileCount = submission.files
       ? Object.keys(submission.files).length
       : 0;
@@ -249,11 +255,15 @@ export const aiService = {
     return {
       score,
       grade,
-      feedback: `AI reviewed your submission containing ${fileCount} file(s). Good code structure. Suggested improvement: add unit tests and improve edge case handling.`,
+      feedback: errorMessage 
+        ? `AI backend unavailable (${errorMessage}). Using fallback evaluation. Your submission contains ${fileCount} file(s). Good code structure.`
+        : `AI reviewed your submission containing ${fileCount} file(s). Good code structure. Suggested improvement: add unit tests and improve edge case handling.`,
       report: {
         timestamp: new Date().toISOString(),
         score,
         grade,
+        aiBackendAvailable: false,
+        fallbackReason: errorMessage,
         metrics: {
           codeQuality: Math.min(score + 2, 100),
           performance: Math.max(score - 3, 0),

@@ -15,9 +15,20 @@ export const signupSchema = z.object({
     .regex(/[A-Z]/, { message: 'Password must contain at least one uppercase letter' })
     .regex(/[0-9]/, { message: 'Password must contain at least one number' })
     .regex(/[^a-zA-Z0-9]/, { message: 'Password must contain at least one special character' }),
-  role: z.enum(['student', 'teacher'], {
-    errorMap: () => ({ message: "Role must be either 'student' or 'teacher'" })
-  })
+  role: z.enum(['student', 'teacher', 'admin'], {
+    errorMap: () => ({ message: "Role must be either 'student', 'teacher', or 'admin'" })
+  }),
+  adminCode: z.string().optional()
+}).refine((data) => {
+  // If role is admin, adminCode is required and must match
+  if (data.role === 'admin') {
+    const expectedAdminCode = process.env.ADMIN_REGISTRATION_CODE || 'DEVBATTLES_ADMIN_2024';
+    return data.adminCode === expectedAdminCode;
+  }
+  return true;
+}, {
+  message: "Invalid admin registration code",
+  path: ["adminCode"]
 });
 
 export const loginSchema = z.object({

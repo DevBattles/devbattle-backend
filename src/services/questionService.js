@@ -1,5 +1,6 @@
 import { questionRepository } from '../repositories/questionRepository.js';
 import { aiService } from './aiService.js';
+import { analyticsService } from './analyticsService.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../logger/logger.js';
 import { QuestionDTO } from '../dto/index.js';
@@ -12,6 +13,12 @@ export const questionService = {
     try {
       questionData.createdBy = userId;
       const question = await questionRepository.createQuestion(questionData);
+
+      await analyticsService.logEvent(userId, 'question_created', {
+        questionId: question.id,
+        title: question.title,
+        difficulty: question.difficulty
+      });
 
       // Situation 1: Call AI to generate valid solutions and update question record
       try {
@@ -143,6 +150,28 @@ export const questionService = {
   async updateQuestionProgress(userId, questionId, progressData) {
     const updated = await questionRepository.updateQuestionProgress(userId, questionId, progressData);
     return updated;
+  },
+
+  async submitPracticeQuestion(userId, questionId, submissionData) {
+    const question = await questionRepository.getQuestionById(questionId);
+    if (!question) throw new AppError('Question not found', 404);
+
+    const submission = {
+      id: crypto.randomUUID(),
+      questionId,
+      questionVersion: question.version || 1,
+      files: submissionData.files || {},
+      githubRepo: submissionData.githubRepo || null,
+    };
+
+    const aiReport = await aiService.evaluateSubmission(submission, question);
+
+    await questionRepository.updateQuestionProgress(userId, questionId, {
+      status: 'completed',
+      score: aiReport.score,
+    });
+
+    return aiReport;
   },
 
   /**

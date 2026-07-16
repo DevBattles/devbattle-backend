@@ -84,4 +84,11 @@ router.get('/:questionId/progress', questionController.getUserQuestionProgress);
  */
 router.put('/:questionId/progress', questionController.updateQuestionProgress);
 
+/**
+ * @route   POST /api/questions/:questionId/submit
+ * @desc    Submit and evaluate practice question solution
+ * @access  Student, Teacher, Admin
+ */
+router.post('/:questionId/submit', questionController.submitPracticeQuestion);
+
 export default router;
