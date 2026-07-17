@@ -41,6 +41,14 @@ export const questionBank = pgTable('question_bank', {
   version: integer('version').default(1).notNull(),
   createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
   published: boolean('published').default(false).notNull(),
+  batch: varchar('batch', { length: 100 }),
+  category: varchar('category', { length: 50 }),
+  workspaceType: varchar('workspace_type', { length: 50 }),
+  evaluationStrategy: varchar('evaluation_strategy', { length: 50 }),
+  supportedLanguage: varchar('supported_language', { length: 50 }),
+  previewRequired: boolean('preview_required').default(false).notNull(),
+  executionMode: varchar('execution_mode', { length: 50 }),
+  options: jsonb('options'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -55,6 +63,13 @@ export const questionVersions = pgTable('question_versions', {
   starterFiles: jsonb('starter_files'),
   expectedOutput: text('expected_output'),
   rubric: jsonb('rubric'),
+  category: varchar('category', { length: 50 }),
+  workspaceType: varchar('workspace_type', { length: 50 }),
+  evaluationStrategy: varchar('evaluation_strategy', { length: 50 }),
+  supportedLanguage: varchar('supported_language', { length: 50 }),
+  previewRequired: boolean('preview_required').default(false).notNull(),
+  executionMode: varchar('execution_mode', { length: 50 }),
+  options: jsonb('options'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

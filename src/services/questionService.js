@@ -1,9 +1,11 @@
 import { questionRepository } from '../repositories/questionRepository.js';
+import { userRepository } from '../repositories/userRepository.js';
 import { aiService } from './aiService.js';
 import { analyticsService } from './analyticsService.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../logger/logger.js';
 import { QuestionDTO } from '../dto/index.js';
+import crypto from 'crypto';
 
 export const questionService = {
   /**
@@ -23,13 +25,24 @@ export const questionService = {
       // Situation 1: Call AI to generate valid solutions and update question record
       try {
         const aiSolutions = await aiService.generateSolutions(question);
-        if (aiSolutions && aiSolutions.referenceId) {
-          await questionRepository.updateQuestion(question.id, {
+        if (aiSolutions) {
+          const updateData = {
+            category: aiSolutions.category || null,
+            workspaceType: aiSolutions.workspaceType || 'html',
+            evaluationStrategy: aiSolutions.evaluationStrategy || 'ui_playwright',
+            supportedLanguage: aiSolutions.supportedLanguage || 'html',
+            previewRequired: aiSolutions.previewRequired ?? true,
+            executionMode: aiSolutions.executionMode || 'browser',
+            options: aiSolutions.options || null,
+            starterFiles: aiSolutions.starterFiles || question.starterFiles,
             expectedOutput: JSON.stringify({
-              aiReferenceId: aiSolutions.referenceId,
-              solutions: aiSolutions.solutions
+              aiReferenceId: aiSolutions.referenceId || question.id,
+              solutions: aiSolutions.solutions || []
             })
-          });
+          };
+
+          await questionRepository.updateQuestionDirectly(question.id, updateData);
+          await questionRepository.updateQuestionVersionDirectly(question.id, 1, updateData);
         }
       } catch (aiError) {
         logger.error('Failed to generate AI solutions during question creation, continuing...', {
@@ -67,7 +80,16 @@ export const questionService = {
   /**
    * Get all questions with filters
    */
-  async getAllQuestions(filters = {}, pagination = {}, sorting = {}) {
+  async getAllQuestions(filters = {}, pagination = {}, sorting = {}, userId = null) {
+    if (userId) {
+      const user = await userRepository.getUserById(userId);
+      if (user && user.role === 'student') {
+        const profile = await userRepository.getStudentProfileByUserId(userId);
+        if (profile && profile.batch) {
+          filters.batch = profile.batch;
+        }
+      }
+    }
     const result = await questionRepository.getAllQuestions(filters, pagination, sorting);
     result.data = QuestionDTO.toResponseList(result.data);
     return result;

@@ -11,6 +11,7 @@ import notificationRoutes from './notifications.js';
 import dashboardRoutes from './dashboard.js';
 import adminRoutes from './admin.js';
 import aiRoutes from './ai.js';
+import batchRoutes from './batches.js';
 
 const router = Router();
 
@@ -51,5 +52,8 @@ router.use('/api/admin', adminRoutes);
 
 // AI features routes
 router.use('/api/ai', aiRoutes);
+
+// Batch management routes
+router.use('/api/batches', batchRoutes);
 
 export default router;

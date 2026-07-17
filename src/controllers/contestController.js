@@ -38,7 +38,7 @@ export const contestController = {
       const filters = req.filters || {};
       const pagination = req.pagination || {};
 
-      const result = await contestService.getAllContests(filters, pagination);
+      const result = await contestService.getAllContests(filters, pagination, req.user?.id);
       return sendSuccess(res, 200, 'Contests retrieved successfully', result);
     } catch (error) {
       next(error);
@@ -157,7 +157,7 @@ export const contestController = {
    */
   async getContestSubmissions(req, res, next) {
     try {
-      const { contestId } = req.params;
+      const contestId = req.params.contestId || null;
       const filters = req.filters || {};
       const pagination = req.pagination || {};
 

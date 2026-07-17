@@ -1,4 +1,5 @@
 import { workspaceRepository } from '../repositories/workspaceRepository.js';
+import { userRepository } from '../repositories/userRepository.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../logger/logger.js';
 
@@ -249,6 +250,12 @@ export const workspaceService = {
    */
   async getOrCreateProject(userId, contextData) {
     try {
+      // Verify user exists in database
+      const user = await userRepository.getUserById(userId);
+      if (!user) {
+        throw new AppError('User not found in database', 404);
+      }
+
       const project = await workspaceRepository.getOrCreateProject(userId, contextData);
       return project;
     } catch (error) {

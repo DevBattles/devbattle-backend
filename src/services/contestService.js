@@ -1,5 +1,6 @@
 import { contestRepository } from '../repositories/contestRepository.js';
 import { questionRepository } from '../repositories/questionRepository.js';
+import { userRepository } from '../repositories/userRepository.js';
 import { aiService } from './aiService.js';
 import { notificationService } from './notificationService.js';
 import { leaderboardService } from './leaderboardService.js';
@@ -14,6 +15,12 @@ export const contestService = {
    */
   async createContest(contestData, userId) {
     try {
+      // Verify user exists in database
+      const user = await userRepository.getUserById(userId);
+      if (!user) {
+        throw new AppError('User not found in database', 404);
+      }
+
       contestData.createdBy = userId;
       const questionsList = contestData.questions || [];
       const contest = await contestRepository.createContest(contestData, questionsList);
@@ -34,7 +41,7 @@ export const contestService = {
 
       return ContestDTO.toResponse(contest);
     } catch (error) {
-      logger.error('Error in contestService.createContest', { error: error.message });
+      logger.error('Error in contestService.createContest', { error: error.message, userId });
       throw error;
     }
   },
@@ -51,7 +58,16 @@ export const contestService = {
   /**
    * Get all contests with filters
    */
-  async getAllContests(filters = {}, pagination = {}) {
+  async getAllContests(filters = {}, pagination = {}, userId = null) {
+    if (userId) {
+      const user = await userRepository.getUserById(userId);
+      if (user && user.role === 'student') {
+        const profile = await userRepository.getStudentProfileByUserId(userId);
+        if (profile && profile.batch) {
+          filters.batch = profile.batch;
+        }
+      }
+    }
     return await contestRepository.getAllContests(filters, pagination);
   },
 

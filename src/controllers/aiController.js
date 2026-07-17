@@ -8,7 +8,7 @@ export const aiController = {
    */
   async mentorChat(req, res, next) {
     try {
-      const payload = req.body;
+      const payload = { ...req.body, userId: req.user?.id };
       logger.info('aiController.mentorChat called', { role: req.user?.role });
 
       // Forward request to AI Service

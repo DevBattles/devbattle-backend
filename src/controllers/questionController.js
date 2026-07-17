@@ -38,7 +38,7 @@ export const questionController = {
       const pagination = req.pagination || {};
       const sorting = req.sorting || {};
 
-      const result = await questionService.getAllQuestions(filters, pagination, sorting);
+      const result = await questionService.getAllQuestions(filters, pagination, sorting, req.user?.id);
       return sendSuccess(res, 200, 'Questions retrieved successfully', result);
     } catch (error) {
       next(error);

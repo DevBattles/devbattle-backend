@@ -120,7 +120,7 @@ export const homeworkController = {
    */
   async getHomeworkSubmissions(req, res, next) {
     try {
-      const { homeworkId } = req.params;
+      const homeworkId = req.params.homeworkId || null;
       const filters = req.filters || {};
       const pagination = req.pagination || {};
 

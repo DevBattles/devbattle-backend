@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
-import { contests, contestQuestions, contestParticipants, contestSubmissions, questionBank } from '../schema/index.js';
-import { eq, and, desc, asc, sql, or } from 'drizzle-orm';
+import { contests, contestQuestions, contestParticipants, contestSubmissions, questionBank, users } from '../schema/index.js';
+import { eq, and, desc, asc, sql, or, isNull } from 'drizzle-orm';
 import logger from '../logger/logger.js';
 
 export const contestRepository = {
@@ -72,12 +72,21 @@ export const contestRepository = {
   async getAllContests(filters = {}, pagination = {}) {
     try {
       const { skip = 0, take = 10 } = pagination;
-      const { published, status, createdBy } = filters;
+      const { published, status, createdBy, batch } = filters;
 
       let conditions = [];
       if (published !== undefined) conditions.push(eq(contests.published, published));
       if (status) conditions.push(eq(contests.status, status));
       if (createdBy) conditions.push(eq(contests.createdBy, createdBy));
+      if (batch) {
+        conditions.push(
+          or(
+            eq(contests.batch, batch),
+            isNull(contests.batch),
+            eq(contests.batch, '')
+          )
+        );
+      }
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -240,16 +249,46 @@ export const contestRepository = {
       const { skip = 0, take = 10 } = pagination;
       const { studentId, questionId } = filters;
 
-      let conditions = [eq(contestSubmissions.contestId, contestId)];
+      let conditions = [];
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (contestId && uuidRegex.test(contestId)) {
+        conditions.push(eq(contestSubmissions.contestId, contestId));
+      }
+
       if (studentId) conditions.push(eq(contestSubmissions.studentId, studentId));
       if (questionId) conditions.push(eq(contestSubmissions.questionId, questionId));
 
-      const list = await db.select()
-        .from(contestSubmissions)
-        .where(and(...conditions))
-        .orderBy(desc(contestSubmissions.submittedAt))
-        .limit(take)
-        .offset(skip);
+      const list = await db.select({
+        id: contestSubmissions.id,
+        contestId: contestSubmissions.contestId,
+        studentId: contestSubmissions.studentId,
+        questionId: contestSubmissions.questionId,
+        questionVersion: contestSubmissions.questionVersion,
+        files: contestSubmissions.files,
+        githubRepo: contestSubmissions.githubRepo,
+        livePreview: contestSubmissions.livePreview,
+        submittedAt: contestSubmissions.submittedAt,
+        status: contestSubmissions.status,
+        score: contestSubmissions.score,
+        grade: contestSubmissions.grade,
+        feedback: contestSubmissions.feedback,
+        report: contestSubmissions.report,
+        createdAt: contestSubmissions.createdAt,
+        student: {
+          username: users.username,
+          email: users.email
+        },
+        contest: {
+          title: contests.title
+        }
+      })
+      .from(contestSubmissions)
+      .leftJoin(users, eq(contestSubmissions.studentId, users.id))
+      .leftJoin(contests, eq(contestSubmissions.contestId, contests.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(contestSubmissions.submittedAt))
+      .limit(take)
+      .offset(skip);
 
       return list;
     } catch (error) {

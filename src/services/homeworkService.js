@@ -1,5 +1,6 @@
 import { homeworkRepository } from '../repositories/homeworkRepository.js';
 import { questionRepository } from '../repositories/questionRepository.js';
+import { userRepository } from '../repositories/userRepository.js';
 import { aiService } from './aiService.js';
 import { notificationService } from './notificationService.js';
 import { leaderboardService } from './leaderboardService.js';
@@ -14,6 +15,12 @@ export const homeworkService = {
    */
   async createHomework(homeworkData, userId) {
     try {
+      // Verify user exists in database
+      const user = await userRepository.getUserById(userId);
+      if (!user) {
+        throw new AppError('User not found in database', 404);
+      }
+
       homeworkData.createdBy = userId;
       const questionIds = homeworkData.questions || [];
       const homework = await homeworkRepository.createHomework(homeworkData, questionIds);
@@ -26,7 +33,7 @@ export const homeworkService = {
 
       return HomeworkDTO.toResponse(homework);
     } catch (error) {
-      logger.error('Error in homeworkService.createHomework', { error: error.message });
+      logger.error('Error in homeworkService.createHomework', { error: error.message, userId });
       throw error;
     }
   },
@@ -110,6 +117,12 @@ export const homeworkService = {
    * Get assigned homeworks list
    */
   async getAssignedHomework(studentId, batch = null, pagination = {}) {
+    if (!batch) {
+      const profile = await userRepository.getStudentProfileByUserId(studentId);
+      if (profile && profile.batch) {
+        batch = profile.batch;
+      }
+    }
     return await homeworkRepository.getAssignedHomework(studentId, batch, pagination);
   },
 

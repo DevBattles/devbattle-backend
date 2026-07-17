@@ -37,6 +37,13 @@ export class QuestionDTO {
       version: question.version,
       createdBy: question.createdBy,
       published: question.published,
+      category: question.category,
+      workspaceType: question.workspaceType,
+      evaluationStrategy: question.evaluationStrategy,
+      supportedLanguage: question.supportedLanguage,
+      previewRequired: question.previewRequired,
+      executionMode: question.executionMode,
+      options: question.options,
       createdAt: question.createdAt,
       updatedAt: question.updatedAt,
     };
@@ -118,6 +125,9 @@ export class SubmissionDTO {
       feedback: submission.feedback,
       report: submission.report,
       createdAt: submission.createdAt,
+      student: submission.student || null,
+      homework: submission.homework || null,
+      contest: submission.contest || null,
     };
   }
 

@@ -17,6 +17,15 @@ const startServer = async () => {
       logger.info(`Server startup: DevBattle Auth Service running on port ${PORT} [Mode: ${env.NODE_ENV}]`);
     });
 
+    // Keep the process alive
+    process.on('uncaughtException', (error) => {
+      logger.error('Uncaught Exception:', { error: error.message, stack: error.stack });
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      logger.error('Unhandled Rejection:', { reason, promise });
+    });
+
     // Graceful shutdown handling
     const gracefulShutdown = (signal) => {
       logger.info(`Received ${signal}: initiating graceful server shutdown.`);
@@ -37,7 +46,7 @@ const startServer = async () => {
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
   } catch (error) {
-    logger.error('Application startup aborted due to critical error', { error: error.message });
+    logger.error('Application startup aborted due to critical error', { error: error.message, stack: error.stack });
     process.exit(1);
   }
 };

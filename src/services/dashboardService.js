@@ -17,10 +17,17 @@ export const dashboardService = {
    */
   async getStudentDashboard(studentId) {
     try {
-      const homeworks = await homeworkRepository.getAssignedHomework(studentId, null, { take: 5 });
+      const profile = await userRepository.getStudentProfileByUserId(studentId);
+      const studentBatch = profile ? profile.batch : null;
+
+      const homeworks = await homeworkRepository.getAssignedHomework(studentId, studentBatch, { take: 5 });
       const upcomingHomeworks = homeworks.filter(h => new Date(h.dueDate) > new Date());
 
-      const contestsResult = await contestRepository.getAllContests({ published: true, status: 'published' }, { take: 5 });
+      const contestsResult = await contestRepository.getAllContests({
+        published: true,
+        status: 'published',
+        batch: studentBatch
+      }, { take: 5 });
       const upcomingContests = contestsResult.data.filter(c => new Date(c.startTime) > new Date());
 
       const [{ totalQuestions }] = await db.select({ totalQuestions: sql`count(*)` }).from(questionBank);

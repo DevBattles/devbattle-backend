@@ -1,4 +1,7 @@
 import logger from "../logger/logger.js";
+import { db } from "../db/index.js";
+import { workspaceProjects, workspaceFiles, homeworkSubmissions, questionBank } from "../schema/index.js";
+import { and, eq, desc } from "drizzle-orm";
 
 const AI_BACKEND_URL = process.env.AI_BACKEND_URL || "http://127.0.0.1:8000";
 
@@ -179,10 +182,69 @@ export const aiService = {
       throw new Error("AI_BACKEND_URL is not configured.");
     }
 
+    let studentCode = "";
+    let evaluationReport = "";
+    let category = "";
+    let difficulty = "";
+    let starterFiles = "";
+    let hints = "";
+
+    const questionId = payload.currentQuestion?.id || payload.questionId;
+    const userId = payload.userId;
+
+    if (userId && questionId) {
+      try {
+        // Find workspace project
+        const [project] = await db.select().from(workspaceProjects).where(
+          and(
+            eq(workspaceProjects.userId, userId),
+            eq(workspaceProjects.questionId, questionId)
+          )
+        );
+        if (project) {
+          const filesList = await db.select().from(workspaceFiles).where(eq(workspaceFiles.projectId, project.id));
+          studentCode = filesList.map(f => `File: ${f.fileName}\nCode:\n${f.content}`).join("\n\n");
+        }
+
+        // Find last submission
+        const [lastSubmission] = await db.select().from(homeworkSubmissions).where(
+          and(
+            eq(homeworkSubmissions.studentId, userId),
+            eq(homeworkSubmissions.questionId, questionId)
+          )
+        ).orderBy(desc(homeworkSubmissions.submittedAt)).limit(1);
+        
+        if (lastSubmission) {
+          evaluationReport = `Score: ${lastSubmission.score}%\nFeedback: ${lastSubmission.feedback}\nReport: ${lastSubmission.report}`;
+        }
+
+        // Find question details
+        const [question] = await db.select().from(questionBank).where(eq(questionBank.id, questionId));
+        if (question) {
+          category = question.category || "";
+          difficulty = question.difficulty || "";
+          starterFiles = JSON.stringify(question.starterFiles || {});
+          hints = question.requirements ? JSON.stringify(question.requirements) : "";
+        }
+      } catch (err) {
+        logger.warn("Failed to enrich mentor chat details from database, proceeding with request", err);
+      }
+    }
+
     // Align exactly with MentorChatRequest schema
     const formattedPayload = {
       currentRole: payload.currentRole || "student",
-      currentQuestion: payload.currentQuestion || {},
+      currentQuestion: {
+        id: questionId,
+        title: payload.currentQuestion?.title || "",
+        description: payload.currentQuestion?.description || "",
+        category: category || payload.currentQuestion?.category || "",
+        difficulty: difficulty || payload.currentQuestion?.difficulty || "",
+        starterFiles: starterFiles || JSON.stringify(payload.currentQuestion?.starterFiles || {}),
+        studentCode: studentCode || "",
+        evaluationReport: evaluationReport || "",
+        hints: hints || ""
+      },
       currentContext: payload.currentContext || {},
       chatHistory: payload.chatHistory || [],
       message: payload.message || "",

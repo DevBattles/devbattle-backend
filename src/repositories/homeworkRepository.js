@@ -1,5 +1,5 @@
 import { db } from '../db/index.js';
-import { homeworks, homeworkQuestions, homeworkAssignments, homeworkSubmissions, questionBank } from '../schema/index.js';
+import { homeworks, homeworkQuestions, homeworkAssignments, homeworkSubmissions, questionBank, users } from '../schema/index.js';
 import { eq, and, desc, asc, sql, or } from 'drizzle-orm';
 import logger from '../logger/logger.js';
 
@@ -235,16 +235,46 @@ export const homeworkRepository = {
       const { skip = 0, take = 10 } = pagination;
       const { studentId, questionId } = filters;
 
-      let conditions = [eq(homeworkSubmissions.homeworkId, homeworkId)];
+      let conditions = [];
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (homeworkId && uuidRegex.test(homeworkId)) {
+        conditions.push(eq(homeworkSubmissions.homeworkId, homeworkId));
+      }
+
       if (studentId) conditions.push(eq(homeworkSubmissions.studentId, studentId));
       if (questionId) conditions.push(eq(homeworkSubmissions.questionId, questionId));
 
-      const list = await db.select()
-        .from(homeworkSubmissions)
-        .where(and(...conditions))
-        .orderBy(desc(homeworkSubmissions.submittedAt))
-        .limit(take)
-        .offset(skip);
+      const list = await db.select({
+        id: homeworkSubmissions.id,
+        homeworkId: homeworkSubmissions.homeworkId,
+        studentId: homeworkSubmissions.studentId,
+        questionId: homeworkSubmissions.questionId,
+        questionVersion: homeworkSubmissions.questionVersion,
+        files: homeworkSubmissions.files,
+        githubRepo: homeworkSubmissions.githubRepo,
+        livePreview: homeworkSubmissions.livePreview,
+        submittedAt: homeworkSubmissions.submittedAt,
+        status: homeworkSubmissions.status,
+        score: homeworkSubmissions.score,
+        grade: homeworkSubmissions.grade,
+        feedback: homeworkSubmissions.feedback,
+        report: homeworkSubmissions.report,
+        createdAt: homeworkSubmissions.createdAt,
+        student: {
+          username: users.username,
+          email: users.email
+        },
+        homework: {
+          title: homeworks.title
+        }
+      })
+      .from(homeworkSubmissions)
+      .leftJoin(users, eq(homeworkSubmissions.studentId, users.id))
+      .leftJoin(homeworks, eq(homeworkSubmissions.homeworkId, homeworks.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(homeworkSubmissions.submittedAt))
+      .limit(take)
+      .offset(skip);
 
       return list;
     } catch (error) {

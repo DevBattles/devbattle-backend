@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { questionBank, questionVersions, questionProgress } from '../schema/index.js';
-import { eq, and, like, or, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, like, or, desc, asc, sql, isNull } from 'drizzle-orm';
 import logger from '../logger/logger.js';
 
 export const questionRepository = {
@@ -62,7 +62,7 @@ export const questionRepository = {
     try {
       const { skip = 0, take = 10 } = pagination;
       const { sortBy = 'createdAt', sortOrder = 'desc' } = sorting;
-      const { difficulty, published, createdBy, search } = filters;
+      const { difficulty, published, createdBy, search, batch } = filters;
 
       let conditions = [];
 
@@ -74,6 +74,15 @@ export const questionRepository = {
       }
       if (createdBy) {
         conditions.push(eq(questionBank.createdBy, createdBy));
+      }
+      if (batch) {
+        conditions.push(
+          or(
+            eq(questionBank.batch, batch),
+            isNull(questionBank.batch),
+            eq(questionBank.batch, '')
+          )
+        );
       }
       if (search) {
         conditions.push(
@@ -144,6 +153,13 @@ export const questionRepository = {
         techStack: updatedQuestion.techStack,
         starterFiles: updatedQuestion.starterFiles,
         expectedOutput: updatedQuestion.expectedOutput,
+        category: updatedQuestion.category,
+        workspaceType: updatedQuestion.workspaceType,
+        evaluationStrategy: updatedQuestion.evaluationStrategy,
+        supportedLanguage: updatedQuestion.supportedLanguage,
+        previewRequired: updatedQuestion.previewRequired,
+        executionMode: updatedQuestion.executionMode,
+        options: updatedQuestion.options,
       });
 
       logger.info('Question updated successfully', { questionId: id, version: newVersion });
@@ -241,6 +257,37 @@ export const questionRepository = {
       }
     } catch (error) {
       logger.error('Error updating question progress', { error: error.message, userId, questionId });
+      throw error;
+    }
+  },
+
+  async updateQuestionDirectly(id, updateData) {
+    try {
+      const [updated] = await db
+        .update(questionBank)
+        .set({
+          ...updateData,
+          updatedAt: new Date()
+        })
+        .where(eq(questionBank.id, id))
+        .returning();
+      return updated;
+    } catch (error) {
+      logger.error('Error updating question directly', { error: error.message, id });
+      throw error;
+    }
+  },
+
+  async updateQuestionVersionDirectly(questionId, version, updateData) {
+    try {
+      const [updated] = await db
+        .update(questionVersions)
+        .set(updateData)
+        .where(and(eq(questionVersions.questionId, questionId), eq(questionVersions.version, version)))
+        .returning();
+      return updated;
+    } catch (error) {
+      logger.error('Error updating question version directly', { error: error.message, questionId, version });
       throw error;
     }
   },

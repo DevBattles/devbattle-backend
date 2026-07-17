@@ -1,5 +1,6 @@
 import { db } from '../db/index.js';
-import { leaderboards, users } from '../schema/index.js';
+import { leaderboards } from '../schema/analytics.js';
+import { users } from '../schema/users.js';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import logger from '../logger/logger.js';
 

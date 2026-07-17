@@ -43,6 +43,10 @@ export const userRepository = {
     }
   },
 
+  async getUserById(id) {
+    return this.findById(id);
+  },
+
   /**
    * Create a new user
    */

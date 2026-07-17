@@ -29,6 +29,13 @@ router.get('/', requireTeacherOrAdmin, parseQuery, homeworkController.getAllHome
 router.get('/assigned', requireStudent, parseQuery, homeworkController.getAssignedHomework);
 
 /**
+ * @route   GET /api/homework/submissions
+ * @desc    Get all homework submissions
+ * @access  Teacher, Admin
+ */
+router.get('/submissions', requireTeacherOrAdmin, parseQuery, homeworkController.getHomeworkSubmissions);
+
+/**
  * @route   GET /api/homework/:id
  * @desc    Get homework by ID
  * @access  Student, Teacher, Admin
