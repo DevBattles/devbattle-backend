@@ -18,7 +18,8 @@ export const signupSchema = z.object({
   role: z.enum(['student', 'teacher', 'admin'], {
     errorMap: () => ({ message: "Role must be either 'student', 'teacher', or 'admin'" })
   }),
-  adminCode: z.string().optional()
+  adminCode: z.string().optional(),
+  joinCode: z.string().optional().or(z.literal(''))
 }).refine((data) => {
   // If role is admin, adminCode is required and must match
   if (data.role === 'admin') {
@@ -38,4 +39,25 @@ export const loginSchema = z.object({
     .trim(),
   password: z.string()
     .min(1, { message: 'Password is required' }),
+});
+
+export const verifyOtpSchema = z.object({
+  email: z.string()
+    .email({ message: 'Invalid email address' })
+    .toLowerCase()
+    .trim(),
+  otp: z.string()
+    .length(6, { message: 'OTP must be exactly 6 digits long' })
+    .regex(/^[0-9]+$/, { message: 'OTP must contain only numbers' }),
+});
+
+export const resendOtpSchema = z.object({
+  email: z.string()
+    .email({ message: 'Invalid email address' })
+    .toLowerCase()
+    .trim(),
+});
+
+export const googleAuthSchema = z.object({
+  token: z.string().min(1, { message: 'Google ID Token is required' }),
 });

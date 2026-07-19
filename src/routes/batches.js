@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { batchController } from '../controllers/batchController.js';
 import { adminController } from '../controllers/adminController.js';
-import { authenticateUser, requireTeacherOrAdmin } from '../middleware/auth.js';
+import { authenticateUser, requireTeacherOrAdmin, requireStudent } from '../middleware/auth.js';
 import { parseQuery } from '../middleware/query.js';
 
 const router = Router();
@@ -56,5 +56,26 @@ router.post('/:batchId/enroll', requireTeacherOrAdmin, batchController.enrollStu
  * @access  Teacher, Admin
  */
 router.post('/:batchId/unenroll', requireTeacherOrAdmin, batchController.unenrollStudent);
+
+/**
+ * @route   POST /api/batches/join
+ * @desc    Student joins a batch using a join code
+ * @access  Student
+ */
+router.post('/join', requireStudent, batchController.joinBatchByCode);
+
+/**
+ * @route   POST /api/batches/:id/regenerate-code
+ * @desc    Regenerate batch join code
+ * @access  Teacher, Admin
+ */
+router.post('/:id/regenerate-code', requireTeacherOrAdmin, batchController.regenerateJoinCode);
+
+/**
+ * @route   GET /api/batches/:batchId/students
+ * @desc    Get all students enrolled in a batch
+ * @access  Teacher, Admin
+ */
+router.get('/:batchId/students', requireTeacherOrAdmin, batchController.getStudentsInBatch);
 
 export default router;
