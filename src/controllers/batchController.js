@@ -98,5 +98,48 @@ export const batchController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * Regenerate join code for batch
+   */
+  async regenerateJoinCode(req, res, next) {
+    try {
+      const { id } = req.params;
+      const updated = await batchService.regenerateJoinCode(id);
+      return sendSuccess(res, 200, 'Join code regenerated successfully', updated);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Join a batch using a join code (for students)
+   */
+  async joinBatchByCode(req, res, next) {
+    try {
+      const { joinCode } = req.body;
+      if (!joinCode) {
+        throw new AppError('joinCode is required', 400);
+      }
+
+      const result = await batchService.joinBatchByCode(req.user.id, joinCode);
+      return sendSuccess(res, 200, 'Enrolled in batch successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Get all students in a batch
+   */
+  async getStudentsInBatch(req, res, next) {
+    try {
+      const { batchId } = req.params;
+      const students = await batchService.getStudentsInBatch(batchId);
+      return sendSuccess(res, 200, 'Students list retrieved successfully', students);
+    } catch (error) {
+      next(error);
+    }
   }
 };

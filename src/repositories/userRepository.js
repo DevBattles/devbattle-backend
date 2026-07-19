@@ -48,6 +48,19 @@ export const userRepository = {
   },
 
   /**
+   * Find a user by Google ID
+   */
+  async findByGoogleId(googleId) {
+    try {
+      const [user] = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
+      return user || null;
+    } catch (error) {
+      logger.error('Error in userRepository.findByGoogleId', { googleId, error: error.message });
+      throw error;
+    }
+  },
+
+  /**
    * Create a new user
    */
   async createUser(userData) {
@@ -55,9 +68,14 @@ export const userRepository = {
       const [user] = await db.insert(users).values({
         username: userData.username,
         email: userData.email,
-        passwordHash: userData.passwordHash,
+        passwordHash: userData.passwordHash || null,
         role: userData.role,
         isApproved: userData.role === 'teacher' ? false : true,
+        isEmailVerified: userData.isEmailVerified ?? false,
+        otpCode: userData.otpCode || null,
+        otpExpiresAt: userData.otpExpiresAt || null,
+        otpLastSentAt: userData.otpLastSentAt || null,
+        googleId: userData.googleId || null,
       }).returning();
       
       return user;

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authController } from '../controllers/authController.js';
 import { healthController } from '../controllers/healthController.js';
+import { authenticateUser } from '../middleware/auth.js';
 import questionRoutes from './questions.js';
 import homeworkRoutes from './homework.js';
 import contestRoutes from './contests.js';
@@ -21,8 +22,13 @@ router.get('/health', healthController.checkHealth);
 
 // Authentication routes
 router.post('/api/auth/signup', authController.signup);
+router.post('/api/auth/verify-otp', authController.verifyOtp);
+router.post('/api/auth/resend-otp', authController.resendOtp);
 router.post('/api/auth/login', authController.login);
+router.post('/api/auth/google', authController.googleLogin);
 router.post('/api/auth/logout', authController.logout);
+router.get('/api/auth/me', authenticateUser, authController.getMe);
+router.post('/api/auth/switch-role', authenticateUser, authController.switchRole);
 
 // Question Bank routes
 router.use('/api/questions', questionRoutes);

@@ -7,7 +7,7 @@ export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   username: varchar('username', { length: 255 }).notNull().unique(),
   email: varchar('email', { length: 255 }).notNull().unique(),
-  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  passwordHash: varchar('password_hash', { length: 255 }),
   role: roleEnum('role').default('student').notNull(),
   status: statusEnum('status').default('PENDING_APPROVAL').notNull(),
   approvedBy: uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
@@ -18,6 +18,11 @@ export const users = pgTable('users', {
   website: varchar('website', { length: 255 }),
   bio: text('bio'),
   preferences: jsonb('preferences').default({}),
+  isEmailVerified: boolean('is_email_verified').default(false).notNull(),
+  otpCode: varchar('otp_code', { length: 6 }),
+  otpExpiresAt: timestamp('otp_expires_at', { withTimezone: true }),
+  otpLastSentAt: timestamp('otp_last_sent_at', { withTimezone: true }),
+  googleId: varchar('google_id', { length: 255 }).unique(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -59,6 +64,7 @@ export const studentProfiles = pgTable('student_profiles', {
 export const batches = pgTable('batches', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
+  joinCode: varchar('join_code', { length: 20 }).unique(),
   collegeId: uuid('college_id').notNull().references(() => colleges.id, { onDelete: 'cascade' }),
   departmentId: uuid('department_id').notNull().references(() => departments.id, { onDelete: 'cascade' }),
   createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
