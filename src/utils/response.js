@@ -2,18 +2,22 @@
  * Standard HTTP response format utilities
  */
 
-export const sendSuccess = (res, statusCode, message, data = {}) => {
+export const sendSuccess = (res, statusCode, message, data = null, meta = null) => {
   return res.status(statusCode).json({
     success: true,
     message,
     data,
+    errors: null,
+    meta,
   });
 };
 
-export const sendFailure = (res, statusCode, message, error = {}) => {
+export const sendFailure = (res, statusCode, message, errors = null, meta = null) => {
   return res.status(statusCode).json({
     success: false,
     message,
-    error,
+    data: null,
+    errors,
+    meta,
   });
 };

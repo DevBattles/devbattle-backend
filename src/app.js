@@ -6,8 +6,12 @@ import rateLimit from 'express-rate-limit';
 import { requestLogger } from './middleware/requestLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import router from './routes/index.js';
+import path from 'path';
 
 const app = express();
+
+// Serve static files (like uploaded avatars)
+app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
 
 // Hide X-Powered-By header (Helmet also handles this, but good practice to explicitly disable)
 app.disable('x-powered-by');

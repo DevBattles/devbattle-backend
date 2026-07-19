@@ -22,6 +22,7 @@ export const questionRepository = {
         techStack: question.techStack,
         starterFiles: question.starterFiles,
         expectedOutput: question.expectedOutput,
+        metadata: question.metadata,
       });
 
       logger.info('Question created successfully', { questionId: question.id });
@@ -158,6 +159,7 @@ export const questionRepository = {
         evaluationStrategy: updatedQuestion.evaluationStrategy,
         supportedLanguage: updatedQuestion.supportedLanguage,
         previewRequired: updatedQuestion.previewRequired,
+        metadata: updatedQuestion.metadata,
         executionMode: updatedQuestion.executionMode,
         options: updatedQuestion.options,
       });

@@ -13,6 +13,11 @@ export const createQuestionSchema = z.object({
   attachments: z.array(z.string()).optional().default([]),
   expectedOutput: z.string().optional().default(''),
   published: z.boolean().optional().default(false),
+  category: z.string().optional(),
+  workspaceType: z.string().optional(),
+  metadata: z.record(z.any()).optional().default({}),
+  options: z.array(z.string()).optional(),
+  previewRequired: z.boolean().optional(),
 });
 
 export const updateQuestionSchema = createQuestionSchema.partial();

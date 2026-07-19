@@ -68,6 +68,67 @@ export const userRepository = {
   },
 
   /**
+   * Update user profile information
+   */
+  async updateUserProfile(userId, profileData) {
+    const [user] = await db.update(users)
+      .set({
+        ...profileData,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  },
+
+  /**
+   * Update user preferences
+   */
+  async updateUserPreferences(userId, preferences) {
+    const [user] = await db.update(users)
+      .set({
+        preferences,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  },
+
+  /**
+   * Update user avatar
+   */
+  async updateUserAvatar(userId, avatarUrl) {
+    const [user] = await db.update(users)
+      .set({
+        avatarUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  },
+
+  /**
+   * Get full user profile with related roles (student/teacher)
+   */
+  async getFullUserProfile(userId) {
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return null;
+
+    let profile = null;
+    if (user.role === 'teacher') {
+      const [tProfile] = await db.select().from(teacherProfiles).where(eq(teacherProfiles.userId, userId)).limit(1);
+      profile = tProfile || null;
+    } else if (user.role === 'student') {
+      const [sProfile] = await db.select().from(studentProfiles).where(eq(studentProfiles.userId, userId)).limit(1);
+      profile = sProfile || null;
+    }
+
+    return { ...user, profile };
+  },
+
+  /**
    * Create teacher profile
    */
   async createTeacherProfile(profileData) {

@@ -80,7 +80,7 @@ const seed = async () => {
       email: 'admin@devbattles.com',
       passwordHash,
       role: 'admin',
-      isApproved: true
+      status: 'ACTIVE'
     }).returning();
 
     const [teacher1] = await db.insert(users).values({
@@ -88,7 +88,7 @@ const seed = async () => {
       email: 'smith@devbattles.com',
       passwordHash,
       role: 'teacher',
-      isApproved: true
+      status: 'ACTIVE'
     }).returning();
 
     const [teacher2] = await db.insert(users).values({
@@ -96,7 +96,7 @@ const seed = async () => {
       email: 'davis@devbattles.com',
       passwordHash,
       role: 'teacher',
-      isApproved: true
+      status: 'ACTIVE'
     }).returning();
 
     const [student1] = await db.insert(users).values({
@@ -104,7 +104,7 @@ const seed = async () => {
       email: 'alice@devbattles.com',
       passwordHash,
       role: 'student',
-      isApproved: true
+      status: 'ACTIVE'
     }).returning();
 
     const [student2] = await db.insert(users).values({
@@ -112,7 +112,7 @@ const seed = async () => {
       email: 'bob@devbattles.com',
       passwordHash,
       role: 'student',
-      isApproved: true
+      status: 'ACTIVE'
     }).returning();
 
     // 4. Create Profiles

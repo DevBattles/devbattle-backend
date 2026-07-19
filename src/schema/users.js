@@ -1,6 +1,7 @@
-import { pgTable, uuid, varchar, timestamp, pgEnum, text, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, pgEnum, text, boolean, jsonb } from 'drizzle-orm/pg-core';
 
 export const roleEnum = pgEnum('devbattle_role', ['student', 'teacher', 'admin']);
+export const statusEnum = pgEnum('devbattle_status', ['PENDING_APPROVAL', 'ACTIVE', 'REJECTED', 'SUSPENDED']);
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -8,7 +9,15 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   role: roleEnum('role').default('student').notNull(),
-  isApproved: boolean('is_approved').default(true).notNull(),
+  status: statusEnum('status').default('PENDING_APPROVAL').notNull(),
+  approvedBy: uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  avatarUrl: varchar('avatar_url', { length: 500 }),
+  location: varchar('location', { length: 255 }),
+  website: varchar('website', { length: 255 }),
+  bio: text('bio'),
+  preferences: jsonb('preferences').default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -33,7 +42,6 @@ export const teacherProfiles = pgTable('teacher_profiles', {
   userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
   departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
   collegeId: uuid('college_id').references(() => colleges.id, { onDelete: 'set null' }),
-  bio: text('bio'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -56,4 +64,13 @@ export const batches = pgTable('batches', {
   createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  adminId: uuid('admin_id').references(() => users.id, { onDelete: 'set null' }),
+  targetUserId: uuid('target_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  action: varchar('action', { length: 50 }).notNull(),
+  details: jsonb('details').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

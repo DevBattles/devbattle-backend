@@ -12,6 +12,7 @@ import dashboardRoutes from './dashboard.js';
 import adminRoutes from './admin.js';
 import aiRoutes from './ai.js';
 import batchRoutes from './batches.js';
+import usersRoutes from './users.js';
 
 const router = Router();
 
@@ -55,5 +56,8 @@ router.use('/api/ai', aiRoutes);
 
 // Batch management routes
 router.use('/api/batches', batchRoutes);
+
+// User profile and settings routes
+router.use('/api/users', usersRoutes);
 
 export default router;
