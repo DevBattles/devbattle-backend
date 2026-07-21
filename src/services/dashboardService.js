@@ -7,7 +7,7 @@ import { notificationRepository } from '../repositories/notificationRepository.j
 import { userRepository } from '../repositories/userRepository.js';
 import { analyticsRepository } from '../repositories/analyticsRepository.js';
 import { db } from '../db/index.js';
-import { users, homeworkSubmissions, contestSubmissions, questionBank, questionProgress } from '../schema/index.js';
+import { users, homeworkSubmissions, contestSubmissions, questionBank, questionProgress, homeworks, contests } from '../schema/index.js';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import logger from '../logger/logger.js';
 
@@ -36,10 +36,43 @@ export const dashboardService = {
       );
       const solvedCount = completedProgress[0] ? parseInt(completedProgress[0].completed) : 0;
 
-      const recentHomeworkSubmission = await db.select().from(homeworkSubmissions)
-        .where(eq(homeworkSubmissions.studentId, studentId))
-        .orderBy(desc(homeworkSubmissions.submittedAt))
-        .limit(1);
+      // Find the most recent homework submission (joining with homeworks to get title)
+      const recentHomeworkSubmission = await db.select({
+        id: homeworkSubmissions.id,
+        score: homeworkSubmissions.score,
+        status: homeworkSubmissions.status,
+        submittedAt: homeworkSubmissions.submittedAt,
+        title: homeworks.title
+      })
+      .from(homeworkSubmissions)
+      .innerJoin(homeworks, eq(homeworkSubmissions.homeworkId, homeworks.id))
+      .where(eq(homeworkSubmissions.studentId, studentId))
+      .orderBy(desc(homeworkSubmissions.submittedAt))
+      .limit(1);
+
+      // Find the most recent contest submission (joining with contests to get title)
+      const recentContestSubmission = await db.select({
+        id: contestSubmissions.id,
+        score: contestSubmissions.score,
+        status: contestSubmissions.status,
+        submittedAt: contestSubmissions.submittedAt,
+        title: contests.title
+      })
+      .from(contestSubmissions)
+      .innerJoin(contests, eq(contestSubmissions.contestId, contests.id))
+      .where(eq(contestSubmissions.studentId, studentId))
+      .orderBy(desc(contestSubmissions.submittedAt))
+      .limit(1);
+
+      // Determine which submission is more recent
+      let recentSubmission = null;
+      const hwSub = recentHomeworkSubmission[0];
+      const ctSub = recentContestSubmission[0];
+      if (hwSub && ctSub) {
+        recentSubmission = new Date(hwSub.submittedAt) > new Date(ctSub.submittedAt) ? hwSub : ctSub;
+      } else {
+        recentSubmission = hwSub || ctSub || null;
+      }
 
       const studentCertificates = await certificateRepository.getUserCertificates(studentId);
 
@@ -57,7 +90,7 @@ export const dashboardService = {
           total: parseInt(totalQuestions || 0),
           percentage: totalQuestions > 0 ? Math.round((solvedCount / totalQuestions) * 100) : 0
         },
-        recentSubmission: recentHomeworkSubmission[0] || null,
+        recentSubmission: recentSubmission,
         certificatesCount: studentCertificates.length,
         unreadNotificationsCount: unreadNotifications.length,
         leaderboardPosition: rank
@@ -118,7 +151,7 @@ export const dashboardService = {
       const aggregateStats = await analyticsRepository.getAggregateStats();
       
       const pendingTeachers = await db.select().from(users).where(
-        and(eq(users.role, 'teacher'), eq(users.isApproved, false))
+        and(eq(users.role, 'teacher'), eq(users.status, 'PENDING_APPROVAL'))
       );
 
       return {

@@ -22,6 +22,20 @@ router.post('/', requireTeacherOrAdmin, contestController.createContest);
 router.get('/', parseQuery, contestController.getAllContests);
 
 /**
+ * @route   GET /api/contests/submissions
+ * @desc    Get all contest submissions
+ * @access  Teacher, Admin
+ */
+router.get('/submissions', requireTeacherOrAdmin, parseQuery, contestController.getContestSubmissions);
+
+/**
+ * @route   GET /api/contests/:contestId/submissions
+ * @desc    Get contest submissions
+ * @access  Teacher, Admin
+ */
+router.get('/:contestId/submissions', requireTeacherOrAdmin, parseQuery, contestController.getContestSubmissions);
+
+/**
  * @route   GET /api/contests/:id
  * @desc    Get contest by ID
  * @access  Student, Teacher, Admin
@@ -91,19 +105,7 @@ router.get('/:id/participants', requireTeacherOrAdmin, contestController.getCont
  */
 router.post('/:contestId/questions/:questionId/submit', requireStudent, contestController.submitContestAnswer);
 
-/**
- * @route   GET /api/contests/submissions
- * @desc    Get all contest submissions
- * @access  Teacher, Admin
- */
-router.get('/submissions', requireTeacherOrAdmin, parseQuery, contestController.getContestSubmissions);
 
-/**
- * @route   GET /api/contests/:contestId/submissions
- * @desc    Get contest submissions
- * @access  Teacher, Admin
- */
-router.get('/:contestId/submissions', requireTeacherOrAdmin, parseQuery, contestController.getContestSubmissions);
 
 /**
  * @route   PUT /api/contests/submissions/:id
