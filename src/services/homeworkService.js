@@ -8,6 +8,9 @@ import { analyticsService } from './analyticsService.js';
 import { AppError } from '../utils/AppError.js';
 import logger from '../logger/logger.js';
 import { HomeworkDTO, SubmissionDTO } from '../dto/index.js';
+import { db } from '../db/index.js';
+import { homeworkSubmissions } from '../schema/index.js';
+import { and, eq, sql } from 'drizzle-orm';
 
 export const homeworkService = {
   /**
@@ -123,7 +126,31 @@ export const homeworkService = {
         batch = profile.batch;
       }
     }
-    return await homeworkRepository.getAssignedHomework(studentId, batch, pagination);
+    const homeworksList = await homeworkRepository.getAssignedHomework(studentId, batch, pagination);
+
+    const enrichedList = [];
+    for (const hw of homeworksList) {
+      const [submissionsCountResult] = await db.select({
+        count: sql`count(*)`
+      })
+      .from(homeworkSubmissions)
+      .where(
+        and(
+          eq(homeworkSubmissions.homeworkId, hw.id),
+          eq(homeworkSubmissions.studentId, studentId)
+        )
+      );
+
+      const count = parseInt(submissionsCountResult?.count || 0);
+
+      enrichedList.push({
+        ...hw,
+        submissionsCount: count,
+        status: count > 0 ? 'Completed' : 'Pending'
+      });
+    }
+
+    return enrichedList;
   },
 
   /**

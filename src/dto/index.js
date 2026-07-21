@@ -6,7 +6,7 @@ export class UserDTO {
       username: user.username,
       email: user.email,
       role: user.role,
-      isApproved: user.isApproved,
+      isApproved: user.status === 'ACTIVE',
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

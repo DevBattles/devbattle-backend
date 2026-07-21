@@ -70,7 +70,7 @@ export const userRepository = {
         email: userData.email,
         passwordHash: userData.passwordHash || null,
         role: userData.role,
-        isApproved: userData.role === 'teacher' ? false : true,
+        status: userData.status || (userData.role === 'teacher' ? 'PENDING_APPROVAL' : 'ACTIVE'),
         isEmailVerified: userData.isEmailVerified ?? false,
         otpCode: userData.otpCode || null,
         otpExpiresAt: userData.otpExpiresAt || null,
@@ -198,7 +198,7 @@ export const userRepository = {
    * Approve teacher account
    */
   async updateTeacherApproval(userId, isApproved) {
-    const [user] = await db.update(users).set({ isApproved, updatedAt: new Date() }).where(eq(users.id, userId)).returning();
+    const [user] = await db.update(users).set({ status: isApproved ? 'ACTIVE' : 'PENDING_APPROVAL', updatedAt: new Date() }).where(eq(users.id, userId)).returning();
     return user;
   },
 
@@ -275,7 +275,7 @@ export const userRepository = {
     const list = await db.select()
       .from(users)
       .leftJoin(teacherProfiles, eq(users.id, teacherProfiles.userId))
-      .where(and(eq(users.role, 'teacher'), eq(users.isApproved, false)))
+      .where(and(eq(users.role, 'teacher'), eq(users.status, 'PENDING_APPROVAL')))
       .orderBy(desc(users.createdAt));
     return list.map(item => ({ ...item.users, profile: item.teacher_profiles }));
   },

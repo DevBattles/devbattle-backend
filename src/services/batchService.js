@@ -141,6 +141,9 @@ export const batchService = {
       // Check if student profile already exists
       const [existingProfile] = await db.select().from(studentProfiles).where(eq(studentProfiles.userId, studentId));
 
+      // Update student status to ACTIVE
+      await db.update(users).set({ status: 'ACTIVE', updatedAt: new Date() }).where(eq(users.id, studentId));
+
       if (existingProfile) {
         // Update batch assignment
         const [updated] = await db.update(studentProfiles)
@@ -161,7 +164,6 @@ export const batchService = {
             batch: targetBatch.name,
             collegeId: targetBatch.collegeId,
             departmentId: targetBatch.departmentId,
-            batch: targetBatch.name
           })
           .returning();
         return created;
@@ -237,6 +239,9 @@ export const batchService = {
       }
 
       const [existingProfile] = await db.select().from(studentProfiles).where(eq(studentProfiles.userId, studentId));
+
+      // Update student status to ACTIVE
+      await db.update(users).set({ status: 'ACTIVE', updatedAt: new Date() }).where(eq(users.id, studentId));
 
       if (existingProfile) {
         if (existingProfile.batch === targetBatch.name) {
