@@ -6,22 +6,19 @@ const client = postgres(process.env.DATABASE_URL);
 
 async function main() {
   try {
-    console.log('Ensuring batch_join_requests table exists...');
+    console.log('Fixing batch_join_requests table columns...');
+    
+    // Add updated_at column if not exists
     await client`
-      CREATE TABLE IF NOT EXISTS batch_join_requests (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        batch_id UUID NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
-        student_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        status VARCHAR(20) NOT NULL DEFAULT 'pending',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updatedAt TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
+      ALTER TABLE batch_join_requests 
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
     `;
-    console.log('✅ batch_join_requests table is ready.');
+    
+    console.log('✅ batch_join_requests table updated_at column verified/added.');
     await client.end();
     process.exit(0);
   } catch (err) {
-    console.error('Error ensuring table:', err);
+    console.error('Error updating table:', err);
     await client.end();
     process.exit(1);
   }
