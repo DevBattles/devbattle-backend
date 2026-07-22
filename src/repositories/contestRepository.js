@@ -247,7 +247,7 @@ export const contestRepository = {
   async getContestSubmissions(contestId, filters = {}, pagination = {}) {
     try {
       const { skip = 0, take = 10 } = pagination;
-      const { studentId, questionId } = filters;
+      const { studentId, questionId, teacherId } = filters;
 
       let conditions = [];
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -257,6 +257,7 @@ export const contestRepository = {
 
       if (studentId) conditions.push(eq(contestSubmissions.studentId, studentId));
       if (questionId) conditions.push(eq(contestSubmissions.questionId, questionId));
+      if (teacherId) conditions.push(eq(contests.createdBy, teacherId));
 
       const list = await db.select({
         id: contestSubmissions.id,

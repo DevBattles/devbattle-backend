@@ -8,7 +8,7 @@ import { userRepository } from '../repositories/userRepository.js';
 import { analyticsRepository } from '../repositories/analyticsRepository.js';
 import { db } from '../db/index.js';
 import { users, homeworkSubmissions, contestSubmissions, questionBank, questionProgress, homeworks, contests } from '../schema/index.js';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, or } from 'drizzle-orm';
 import logger from '../logger/logger.js';
 
 export const dashboardService = {
@@ -114,11 +114,65 @@ export const dashboardService = {
       const contestResult = await contestRepository.getAllContests({ createdBy: teacherId }, { take: 1000 });
       const totalContestsCreated = contestResult.data.length;
 
-      const [{ pendingHwCount }] = await db.select({ pendingHwCount: sql`count(*)` }).from(homeworkSubmissions)
-        .where(eq(homeworkSubmissions.status, 'pending'));
-      const [{ pendingContestCount }] = await db.select({ pendingContestCount: sql`count(*)` }).from(contestSubmissions)
-        .where(eq(contestSubmissions.status, 'pending'));
+      const [{ pendingHwCount }] = await db.select({ pendingHwCount: sql`count(*)` })
+        .from(homeworkSubmissions)
+        .innerJoin(homeworks, eq(homeworkSubmissions.homeworkId, homeworks.id))
+        .where(
+          and(
+            eq(homeworks.createdBy, teacherId),
+            or(
+              eq(homeworkSubmissions.status, 'pending'),
+              eq(homeworkSubmissions.status, 'graded')
+            )
+          )
+        );
+
+      const [{ pendingContestCount }] = await db.select({ pendingContestCount: sql`count(*)` })
+        .from(contestSubmissions)
+        .innerJoin(contests, eq(contestSubmissions.contestId, contests.id))
+        .where(
+          and(
+            eq(contests.createdBy, teacherId),
+            or(
+              eq(contestSubmissions.status, 'pending'),
+              eq(contestSubmissions.status, 'graded')
+            )
+          )
+        );
+
       const totalPendingReviews = parseInt(pendingHwCount || 0) + parseInt(pendingContestCount || 0);
+
+      // Fetch recent homework submissions for this teacher's homeworks
+      const recentHwSubmissions = await db.select({
+        id: homeworkSubmissions.id,
+        action: sql`'Homework Submission'::text`,
+        details: sql`concat(${users.username}, ' submitted ', ${homeworks.title})`,
+        timestamp: homeworkSubmissions.submittedAt
+      })
+      .from(homeworkSubmissions)
+      .innerJoin(users, eq(homeworkSubmissions.studentId, users.id))
+      .innerJoin(homeworks, eq(homeworkSubmissions.homeworkId, homeworks.id))
+      .where(eq(homeworks.createdBy, teacherId))
+      .orderBy(desc(homeworkSubmissions.submittedAt))
+      .limit(5);
+
+      // Fetch recent contest submissions for this teacher's contests
+      const recentContestSubmissions = await db.select({
+        id: contestSubmissions.id,
+        action: sql`'Contest Submission'::text`,
+        details: sql`concat(${users.username}, ' submitted ', ${contests.title})`,
+        timestamp: contestSubmissions.submittedAt
+      })
+      .from(contestSubmissions)
+      .innerJoin(users, eq(contestSubmissions.studentId, users.id))
+      .innerJoin(contests, eq(contestSubmissions.contestId, contests.id))
+      .where(eq(contests.createdBy, teacherId))
+      .orderBy(desc(contestSubmissions.submittedAt))
+      .limit(5);
+
+      const recentActivity = [...recentHwSubmissions, ...recentContestSubmissions]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 5);
 
       const qResult = await questionRepository.getAllQuestions({ createdBy: teacherId }, { take: 1000 });
       const questionsInBank = qResult.data.length;
@@ -134,7 +188,8 @@ export const dashboardService = {
         pendingReviews: totalPendingReviews,
         questionBankCount: questionsInBank,
         leaderboard: topStudents,
-        analytics: aggregateStats
+        analytics: aggregateStats,
+        recentActivity: recentActivity
       };
     } catch (error) {
       logger.error('Error fetching teacher dashboard data', { teacherId, error: error.message });

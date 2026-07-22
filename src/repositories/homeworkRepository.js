@@ -233,7 +233,7 @@ export const homeworkRepository = {
   async getHomeworkSubmissions(homeworkId, filters = {}, pagination = {}) {
     try {
       const { skip = 0, take = 10 } = pagination;
-      const { studentId, questionId } = filters;
+      const { studentId, questionId, teacherId } = filters;
 
       let conditions = [];
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -243,6 +243,7 @@ export const homeworkRepository = {
 
       if (studentId) conditions.push(eq(homeworkSubmissions.studentId, studentId));
       if (questionId) conditions.push(eq(homeworkSubmissions.questionId, questionId));
+      if (teacherId) conditions.push(eq(homeworks.createdBy, teacherId));
 
       const list = await db.select({
         id: homeworkSubmissions.id,

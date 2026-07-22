@@ -161,6 +161,10 @@ export const contestController = {
       const filters = req.filters || {};
       const pagination = req.pagination || {};
 
+      if (req.user && req.user.role === 'teacher') {
+        filters.teacherId = req.user.id;
+      }
+
       const submissions = await contestService.getContestSubmissions(contestId, filters, pagination);
       return sendSuccess(res, 200, 'Submissions retrieved successfully', submissions);
     } catch (error) {

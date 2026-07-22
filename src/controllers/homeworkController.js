@@ -124,6 +124,10 @@ export const homeworkController = {
       const filters = req.filters || {};
       const pagination = req.pagination || {};
 
+      if (req.user && req.user.role === 'teacher') {
+        filters.teacherId = req.user.id;
+      }
+
       const submissions = await homeworkService.getHomeworkSubmissions(homeworkId, filters, pagination);
       return sendSuccess(res, 200, 'Submissions retrieved successfully', submissions);
     } catch (error) {
