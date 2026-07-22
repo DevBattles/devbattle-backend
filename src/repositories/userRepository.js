@@ -137,14 +137,41 @@ export const userRepository = {
 
     let profile = null;
     if (user.role === 'teacher') {
-      const [tProfile] = await db.select().from(teacherProfiles).where(eq(teacherProfiles.userId, userId)).limit(1);
-      profile = tProfile || null;
+      const [tProfile] = await db.select()
+        .from(teacherProfiles)
+        .leftJoin(colleges, eq(teacherProfiles.collegeId, colleges.id))
+        .leftJoin(departments, eq(teacherProfiles.departmentId, departments.id))
+        .where(eq(teacherProfiles.userId, userId))
+        .limit(1);
+      if (tProfile) {
+        profile = {
+          ...tProfile.teacher_profiles,
+          college: tProfile.colleges,
+          department: tProfile.departments
+        };
+      }
     } else if (user.role === 'student') {
-      const [sProfile] = await db.select().from(studentProfiles).where(eq(studentProfiles.userId, userId)).limit(1);
-      profile = sProfile || null;
+      const [sProfile] = await db.select()
+        .from(studentProfiles)
+        .leftJoin(colleges, eq(studentProfiles.collegeId, colleges.id))
+        .leftJoin(departments, eq(studentProfiles.departmentId, departments.id))
+        .where(eq(studentProfiles.userId, userId))
+        .limit(1);
+      if (sProfile) {
+        profile = {
+          ...sProfile.student_profiles,
+          college: sProfile.colleges,
+          department: sProfile.departments
+        };
+      }
     }
 
-    return { ...user, profile };
+    return { 
+      ...user, 
+      profile, 
+      studentProfile: profile, 
+      teacherProfile: profile 
+    };
   },
 
   /**
