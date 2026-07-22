@@ -35,7 +35,16 @@ const upload = multer({
   }
 });
 
+import { userHistoryController } from '../controllers/userHistoryController.js';
+
 router.use(authenticateUser);
+
+/**
+ * @route   GET /api/users/history
+ * @desc    Get student aggregated performance and submission history
+ * @access  Private (Student)
+ */
+router.get('/history', userHistoryController.getStudentHistory);
 
 /**
  * @route   GET /api/users/me

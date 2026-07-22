@@ -4,6 +4,8 @@ import { eq, and, sql, isNull } from 'drizzle-orm';
 import { AppError } from '../utils/AppError.js';
 import logger from '../logger/logger.js';
 import crypto from 'crypto';
+import { userRepository } from '../repositories/userRepository.js';
+import { notificationService } from './notificationService.js';
 
 function generateJoinCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -64,6 +66,11 @@ export const batchService = {
    */
   async createBatch(batchData) {
     try {
+      const creator = await userRepository.findById(batchData.createdBy);
+      if (!creator || (creator.role === 'teacher' && creator.status !== 'ACTIVE')) {
+        throw new AppError('Your teacher account is pending approval or rejected. You cannot create batches.', 403);
+      }
+
       let joinCode;
       let isUnique = false;
       while (!isUnique) {
@@ -84,6 +91,7 @@ export const batchService = {
       return newBatch;
     } catch (error) {
       logger.error('Error creating batch', { error: error.message });
+      if (error instanceof AppError) throw error;
       throw new AppError('Failed to create batch: name must be unique', 400);
     }
   },
@@ -225,7 +233,7 @@ export const batchService = {
   },
 
   /**
-   * Join a batch using a join code
+   * Submit join batch request using a join code (for students)
    */
   async joinBatchByCode(studentId, joinCode) {
     try {
@@ -238,41 +246,125 @@ export const batchService = {
         throw new AppError('Invalid join code: Batch not found', 404);
       }
 
+      // Check if student is already enrolled in this batch
       const [existingProfile] = await db.select().from(studentProfiles).where(eq(studentProfiles.userId, studentId));
-
-      // Update student status to ACTIVE
-      await db.update(users).set({ status: 'ACTIVE', updatedAt: new Date() }).where(eq(users.id, studentId));
-
-      if (existingProfile) {
-        if (existingProfile.batch === targetBatch.name) {
-          throw new AppError('You are already enrolled in this batch', 400);
-        }
-
-        const [updated] = await db.update(studentProfiles)
-          .set({
-            batch: targetBatch.name,
-            collegeId: targetBatch.collegeId,
-            departmentId: targetBatch.departmentId,
-            updatedAt: new Date()
-          })
-          .where(eq(studentProfiles.id, existingProfile.id))
-          .returning();
-        return { success: true, batch: targetBatch, profile: updated };
-      } else {
-        const [created] = await db.insert(studentProfiles)
-          .values({
-            userId: studentId,
-            batch: targetBatch.name,
-            collegeId: targetBatch.collegeId,
-            departmentId: targetBatch.departmentId,
-          })
-          .returning();
-        return { success: true, batch: targetBatch, profile: created };
+      if (existingProfile && existingProfile.batch === targetBatch.name) {
+        throw new AppError('You are already enrolled in this batch', 400);
       }
+
+      // Check if student already has a pending join request for this batch
+      const existingRequest = await userRepository.findPendingJoinRequest(targetBatch.id, studentId);
+      if (existingRequest) {
+        throw new AppError('You already have a pending join request for this batch', 400);
+      }
+
+      // Create pending join request
+      const joinRequest = await userRepository.createBatchJoinRequest({
+        batchId: targetBatch.id,
+        studentId
+      });
+
+      const student = await userRepository.findById(studentId);
+
+      // Notify the teacher who created the batch
+      await notificationService.createNotification({
+        userId: targetBatch.createdBy,
+        title: 'New Batch Join Request',
+        message: `Student "${student?.username || 'A student'}" has requested to join your batch "${targetBatch.name}".`,
+        type: 'general',
+        metadata: { requestId: joinRequest.id, batchId: targetBatch.id }
+      });
+
+      return {
+        success: true,
+        pending: true,
+        message: 'Join request submitted! Awaiting teacher approval.',
+        batch: targetBatch
+      };
     } catch (error) {
-      logger.error('Error joining batch by code', { studentId, joinCode, error: error.message });
+      logger.error('Error submitting batch join request', { studentId, joinCode, error: error.message });
       throw error;
     }
+  },
+
+  /**
+   * Get pending join requests for teacher/admin
+   */
+  async getJoinRequests(userId, role) {
+    if (role === 'admin') {
+      return await userRepository.getPendingJoinRequestsForTeacher(null);
+    }
+    return await userRepository.getPendingJoinRequestsForTeacher(userId);
+  },
+
+  /**
+   * Accept student's batch join request
+   */
+  async acceptJoinRequest(requestId, userId, role) {
+    const request = await userRepository.getJoinRequestById(requestId);
+    if (!request) throw new AppError('Join request not found', 404);
+    if (request.status !== 'pending') throw new AppError('Join request has already been processed', 400);
+
+    const [targetBatch] = await db.select().from(batches).where(eq(batches.id, request.batchId));
+    if (!targetBatch) throw new AppError('Batch not found', 404);
+
+    if (role !== 'admin' && targetBatch.createdBy !== userId) {
+      throw new AppError('Forbidden: Only the batch creator can approve join requests', 403);
+    }
+
+    // Enroll student in batch
+    await this.enrollStudent(targetBatch.id, request.studentId);
+
+    // Update request status to accepted / remove
+    await userRepository.deleteJoinRequest(requestId);
+
+    // Notify student
+    await notificationService.createNotification({
+      userId: request.studentId,
+      title: 'Batch Join Request Accepted',
+      message: `Your request to join batch "${targetBatch.name}" has been accepted!`,
+      type: 'general',
+      metadata: { batchId: targetBatch.id }
+    });
+
+    return { success: true, message: `Approved join request for batch ${targetBatch.name}` };
+  },
+
+  /**
+   * Reject student's batch join request
+   */
+  async rejectJoinRequest(requestId, userId, role) {
+    const request = await userRepository.getJoinRequestById(requestId);
+    if (!request) throw new AppError('Join request not found', 404);
+    if (request.status !== 'pending') throw new AppError('Join request has already been processed', 400);
+
+    const [targetBatch] = await db.select().from(batches).where(eq(batches.id, request.batchId));
+    if (!targetBatch) throw new AppError('Batch not found', 404);
+
+    if (role !== 'admin' && targetBatch.createdBy !== userId) {
+      throw new AppError('Forbidden: Only the batch creator can reject join requests', 403);
+    }
+
+    // Delete request record
+    await userRepository.deleteJoinRequest(requestId);
+
+    // Notify student
+    await notificationService.createNotification({
+      userId: request.studentId,
+      title: 'Batch Join Request Rejected',
+      message: `Your request to join batch "${targetBatch.name}" was rejected by the teacher.`,
+      type: 'general',
+      metadata: { batchId: targetBatch.id }
+    });
+
+    return { success: true, message: `Rejected join request for batch ${targetBatch.name}` };
+  },
+
+  /**
+   * Get student's pending join requests
+   */
+  async getStudentPendingRequests(studentId) {
+    return await userRepository.getStudentPendingJoinRequests(studentId);
   },
 
   /**
@@ -302,3 +394,4 @@ export const batchService = {
     }
   }
 };
+

@@ -1,7 +1,8 @@
 import { db } from '../db/index.js';
-import { users, colleges, departments, teacherProfiles, studentProfiles } from '../schema/index.js';
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { users, colleges, departments, teacherProfiles, studentProfiles, batches, batchJoinRequests } from '../schema/index.js';
+import { eq, and, desc, asc, sql, isNull, or } from 'drizzle-orm';
 import logger from '../logger/logger.js';
+
 
 export const userRepository = {
   /**
@@ -291,5 +292,130 @@ export const userRepository = {
       .limit(take)
       .offset(skip);
     return list.map(item => ({ ...item.users, profile: item.student_profiles }));
+  },
+
+  /**
+   * Create a new batch join request
+   */
+  async createBatchJoinRequest(data) {
+    const [request] = await db.insert(batchJoinRequests).values({
+      batchId: data.batchId,
+      studentId: data.studentId,
+      status: 'pending'
+    }).returning();
+    return request;
+  },
+
+  /**
+   * Get pending join requests for a teacher's batches (or all if teacherId is null)
+   */
+  async getPendingJoinRequestsForTeacher(teacherId = null) {
+    let query = db.select({
+      id: batchJoinRequests.id,
+      batchId: batchJoinRequests.batchId,
+      studentId: batchJoinRequests.studentId,
+      status: batchJoinRequests.status,
+      createdAt: batchJoinRequests.createdAt,
+      studentName: users.username,
+      studentEmail: users.email,
+      batchName: batches.name,
+      collegeName: colleges.name,
+      departmentName: departments.name
+    })
+    .from(batchJoinRequests)
+    .innerJoin(users, eq(batchJoinRequests.studentId, users.id))
+    .innerJoin(batches, eq(batchJoinRequests.batchId, batches.id))
+    .innerJoin(colleges, eq(batches.collegeId, colleges.id))
+    .innerJoin(departments, eq(batches.departmentId, departments.id));
+
+    if (teacherId) {
+      query = query.where(and(eq(batches.createdBy, teacherId), eq(batchJoinRequests.status, 'pending')));
+    } else {
+      query = query.where(eq(batchJoinRequests.status, 'pending'));
+    }
+
+    return await query.orderBy(desc(batchJoinRequests.createdAt));
+  },
+
+  /**
+   * Get student's pending join requests
+   */
+  async getStudentPendingJoinRequests(studentId) {
+    const list = await db.select({
+      id: batchJoinRequests.id,
+      batchId: batchJoinRequests.batchId,
+      batchName: batches.name,
+      status: batchJoinRequests.status,
+      createdAt: batchJoinRequests.createdAt
+    })
+    .from(batchJoinRequests)
+    .innerJoin(batches, eq(batchJoinRequests.batchId, batches.id))
+    .where(and(eq(batchJoinRequests.studentId, studentId), eq(batchJoinRequests.status, 'pending')));
+
+    return list;
+  },
+
+  /**
+   * Check if a student has an existing pending join request for a batch
+   */
+  async findPendingJoinRequest(batchId, studentId) {
+    const [existing] = await db.select()
+      .from(batchJoinRequests)
+      .where(and(
+        eq(batchJoinRequests.batchId, batchId),
+        eq(batchJoinRequests.studentId, studentId),
+        eq(batchJoinRequests.status, 'pending')
+      ));
+    return existing || null;
+  },
+
+  /**
+   * Get join request by ID
+   */
+  async getJoinRequestById(requestId) {
+    const [request] = await db.select().from(batchJoinRequests).where(eq(batchJoinRequests.id, requestId));
+    return request || null;
+  },
+
+  /**
+   * Update join request status
+   */
+  async updateJoinRequestStatus(requestId, status) {
+    const [updated] = await db.update(batchJoinRequests)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(batchJoinRequests.id, requestId))
+      .returning();
+    return updated;
+  },
+
+  /**
+   * Delete join request
+   */
+  async deleteJoinRequest(requestId) {
+    const [deleted] = await db.delete(batchJoinRequests).where(eq(batchJoinRequests.id, requestId)).returning();
+    return deleted;
+  },
+
+  /**
+   * Get students who have registered but have not joined any batch
+   */
+  async getStudentsWithoutBatch() {
+    const list = await db.select({
+      id: users.id,
+      username: users.username,
+      email: users.email,
+      createdAt: users.createdAt,
+      status: users.status
+    })
+    .from(users)
+    .leftJoin(studentProfiles, eq(users.id, studentProfiles.userId))
+    .where(and(
+      eq(users.role, 'student'),
+      or(isNull(studentProfiles.id), isNull(studentProfiles.batch), eq(studentProfiles.batch, ''))
+    ))
+    .orderBy(desc(users.createdAt));
+
+    return list;
   }
 };
+

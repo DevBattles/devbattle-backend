@@ -25,10 +25,9 @@ export const dashboardService = {
 
       const contestsResult = await contestRepository.getAllContests({
         published: true,
-        status: 'published',
         batch: studentBatch
-      }, { take: 5 });
-      const upcomingContests = contestsResult.data.filter(c => new Date(c.startTime) > new Date());
+      }, { take: 10 });
+      const upcomingContests = contestsResult.data.filter(c => new Date(c.endTime) >= new Date());
 
       const [{ totalQuestions }] = await db.select({ totalQuestions: sql`count(*)` }).from(questionBank);
       const completedProgress = await db.select({ completed: sql`count(*)` }).from(questionProgress).where(
@@ -154,10 +153,13 @@ export const dashboardService = {
         and(eq(users.role, 'teacher'), eq(users.status, 'PENDING_APPROVAL'))
       );
 
+      const studentsWithoutBatch = await userRepository.getStudentsWithoutBatch();
+
       return {
         analytics: aggregateStats,
         pendingTeachersApprovalCount: pendingTeachers.length,
-        pendingTeachersList: pendingTeachers.map(u => ({ id: u.id, username: u.username, email: u.email }))
+        pendingTeachersList: pendingTeachers.map(u => ({ id: u.id, username: u.username, email: u.email, createdAt: u.createdAt })),
+        studentsWithoutBatch: studentsWithoutBatch
       };
     } catch (error) {
       logger.error('Error fetching admin dashboard data', { error: error.message });

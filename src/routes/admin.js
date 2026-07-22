@@ -50,6 +50,13 @@ router.get('/pending-teachers', adminController.getPendingTeachers);
 router.get('/teachers', parseQuery, adminController.getAllTeachers);
 
 /**
+ * @route   GET /api/admin/students/without-batch
+ * @desc    List registered students who have not joined any batch
+ * @access  Admin
+ */
+router.get('/students/without-batch', adminController.getStudentsWithoutBatch);
+
+/**
  * @route   GET /api/admin/students
  * @desc    List all students
  * @access  Admin

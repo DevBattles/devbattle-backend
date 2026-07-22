@@ -92,5 +92,17 @@ export const adminController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * List students without batch
+   */
+  async getStudentsWithoutBatch(req, res, next) {
+    try {
+      const students = await adminService.getStudentsWithoutBatch();
+      return sendSuccess(res, 200, 'Students without batch retrieved successfully', students);
+    } catch (error) {
+      next(error);
+    }
   }
 };

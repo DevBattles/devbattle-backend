@@ -80,3 +80,13 @@ export const auditLogs = pgTable('audit_logs', {
   details: jsonb('details').default({}).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const batchJoinRequests = pgTable('batch_join_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  batchId: uuid('batch_id').notNull().references(() => batches.id, { onDelete: 'cascade' }),
+  studentId: uuid('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: varchar('status', { length: 20 }).default('pending').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+

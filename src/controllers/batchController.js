@@ -141,5 +141,56 @@ export const batchController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * Get pending join requests for teacher/admin
+   */
+  async getJoinRequests(req, res, next) {
+    try {
+      const requests = await batchService.getJoinRequests(req.user.id, req.user.role);
+      return sendSuccess(res, 200, 'Join requests retrieved successfully', requests);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Accept student batch join request
+   */
+  async acceptJoinRequest(req, res, next) {
+    try {
+      const { requestId } = req.params;
+      const result = await batchService.acceptJoinRequest(requestId, req.user.id, req.user.role);
+      return sendSuccess(res, 200, 'Join request accepted successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Reject student batch join request
+   */
+  async rejectJoinRequest(req, res, next) {
+    try {
+      const { requestId } = req.params;
+      const result = await batchService.rejectJoinRequest(requestId, req.user.id, req.user.role);
+      return sendSuccess(res, 200, 'Join request rejected successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Get student's pending join requests
+   */
+  async getStudentJoinRequests(req, res, next) {
+    try {
+      const requests = await batchService.getStudentPendingRequests(req.user.id);
+      return sendSuccess(res, 200, 'Pending join requests retrieved successfully', requests);
+    } catch (error) {
+      next(error);
+    }
   }
 };
+

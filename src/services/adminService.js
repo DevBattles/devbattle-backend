@@ -128,5 +128,12 @@ export const adminService = {
       email: s.email,
       profile: s.profile
     }));
+  },
+
+  /**
+   * Get students without batch
+   */
+  async getStudentsWithoutBatch() {
+    return await userRepository.getStudentsWithoutBatch();
   }
 };

@@ -16,7 +16,7 @@ export const contestRepository = {
           startTime: new Date(contestData.startTime),
           endTime: new Date(contestData.endTime),
           published: contestData.published || false,
-          status: contestData.status || 'draft',
+          status: contestData.status || (contestData.published ? 'published' : 'draft'),
           createdBy: contestData.createdBy
         }).returning();
 
