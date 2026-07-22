@@ -325,8 +325,8 @@ export const userRepository = {
     .from(batchJoinRequests)
     .innerJoin(users, eq(batchJoinRequests.studentId, users.id))
     .innerJoin(batches, eq(batchJoinRequests.batchId, batches.id))
-    .innerJoin(colleges, eq(batches.collegeId, colleges.id))
-    .innerJoin(departments, eq(batches.departmentId, departments.id));
+    .leftJoin(colleges, eq(batches.collegeId, colleges.id))
+    .leftJoin(departments, eq(batches.departmentId, departments.id));
 
     if (teacherId) {
       query = query.where(and(eq(batches.createdBy, teacherId), eq(batchJoinRequests.status, 'pending')));
